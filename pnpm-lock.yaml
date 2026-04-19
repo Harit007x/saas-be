@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@prisma/client':
-        specifier: 6.17.0
+        specifier: ^6.17.0
         version: 6.17.0(prisma@6.17.0(typescript@5.9.3))(typescript@5.9.3)
       bcryptjs:
         specifier: ^3.0.2
@@ -30,7 +30,7 @@ importers:
         specifier: ^9.0.2
         version: 9.0.3
       prisma:
-        specifier: 6.17.0
+        specifier: ^6.17.0
         version: 6.17.0(typescript@5.9.3)
       swagger-jsdoc:
         specifier: ^6.2.8
