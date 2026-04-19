@@ -7,9 +7,9 @@ on:
 
 env:
   PROJECT_ID: nezmuzgcp
-  REGION: asia-south1
+  REGION: asia-southeast1
   SERVICE_NAME: saas-be
-  IMAGE_NAME: asia-south1-docker.pkg.dev/nezmuzgcp/saas-repo/saas-be
+  IMAGE_NAME: asia-southeast1-docker.pkg.dev/nezmuzgcp/saas-repo/saas-be
 
 jobs:
   deploy:
