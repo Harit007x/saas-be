@@ -56,3 +56,4 @@ jobs:
           # Pulls DATABASE_URL from GCP Secret Manager and assigns it to Cloud Run environment
           secrets: |
             DATABASE_URL=DATABASE_URL:latest
+            FRONTEND_URL=FRONTEND_URL:latest
