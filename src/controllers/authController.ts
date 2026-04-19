@@ -228,7 +228,7 @@ const resetPassword = async (req: Request, res: Response): Promise<void> => {
   const { resetToken } = req.params;
   const { password } = req.body;
 
-  const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+  const hashedToken = crypto.createHash("sha256").update(String(resetToken)).digest("hex");
 
   const user = await prisma.user.findFirst({
     where: {
