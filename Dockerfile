@@ -1,5 +1,5 @@
 # BUILD STAGE
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 # Enable pnpm
 ENV PNPM_HOME="/pnpm"
@@ -27,7 +27,7 @@ COPY . .
 RUN pnpm run build
 
 # RUNNER STAGE
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 
 # Enable pnpm
 ENV PNPM_HOME="/pnpm"
