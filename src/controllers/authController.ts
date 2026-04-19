@@ -19,6 +19,7 @@ export const loginSchema = z.object({
   body: z.object({
     email: z.string().email("Invalid email"),
     password: z.string().min(1, "Password is required"),
+    rememberMe: z.boolean().optional(),
   }),
 });
 
@@ -81,7 +82,7 @@ const signup = async (req: Request, res: Response): Promise<void> => {
 };
 
 const login = async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body;
+  const { email, password, rememberMe } = req.body;
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
@@ -106,7 +107,7 @@ const login = async (req: Request, res: Response): Promise<void> => {
     },
   });
 
-  setAuthCookies(res, accessToken, refreshToken);
+  setAuthCookies(res, accessToken, refreshToken, rememberMe);
 
   res.status(200).json({
     success: true,

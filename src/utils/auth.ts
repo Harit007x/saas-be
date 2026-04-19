@@ -17,7 +17,7 @@ export const generateRefreshToken = (userId: string): string => {
   );
 };
 
-export const setAuthCookies = (res: Response, accessToken: string, refreshToken: string) => {
+export const setAuthCookies = (res: Response, accessToken: string, refreshToken: string, rememberMe: boolean = true) => {
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -25,12 +25,17 @@ export const setAuthCookies = (res: Response, accessToken: string, refreshToken:
     maxAge: 15 * 60 * 1000, // 15 minutes
   });
 
-  res.cookie("refreshToken", refreshToken, {
+  const refreshTokenOptions: any = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  });
+  };
+
+  if (rememberMe) {
+    refreshTokenOptions.maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+  }
+
+  res.cookie("refreshToken", refreshToken, refreshTokenOptions);
 };
 
 export const clearAuthCookies = (res: Response) => {
