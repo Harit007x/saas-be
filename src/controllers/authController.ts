@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { FastifyRequest, FastifyReply } from "fastify";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { z } from "zod";
@@ -39,14 +39,13 @@ export const resetPasswordSchema = z.object({
 });
 
 // Controllers
-const signup = async (req: Request, res: Response): Promise<void> => {
+const signup = async (req: FastifyRequest<{ Body: z.infer<typeof signupSchema>["body"] }>, reply: FastifyReply): Promise<void> => {
   try {
     const { name, email, password } = req.body;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      res.status(400).json({ success: false, message: "User already exists" });
-      return;
+      return reply.status(400).send({ success: false, message: "User already exists" });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -68,32 +67,30 @@ const signup = async (req: Request, res: Response): Promise<void> => {
       },
     });
 
-    setAuthCookies(res, accessToken, refreshToken);
+    setAuthCookies(reply, accessToken, refreshToken);
 
-    res.status(201).json({
+    return reply.status(201).send({
       success: true,
       data: { id: user.id, name: user.name, email: user.email },
       accessToken,
     });
   } catch (error) {
     console.error("Signup Error:", error);
-    res.status(500).json({ success: false, message: "Internal server error during signup" });
+    return reply.status(500).send({ success: false, message: "Internal server error during signup" });
   }
 };
 
-const login = async (req: Request, res: Response): Promise<void> => {
+const login = async (req: FastifyRequest<{ Body: z.infer<typeof loginSchema>["body"] }>, reply: FastifyReply): Promise<void> => {
   const { email, password, rememberMe } = req.body;
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
-    res.status(401).json({ success: false, message: "Invalid credentials" });
-    return;
+    return reply.status(401).send({ success: false, message: "Invalid credentials" });
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
-    res.status(401).json({ success: false, message: "Invalid credentials" });
-    return;
+    return reply.status(401).send({ success: false, message: "Invalid credentials" });
   }
 
   const accessToken = generateAccessToken(user.id);
@@ -107,21 +104,20 @@ const login = async (req: Request, res: Response): Promise<void> => {
     },
   });
 
-  setAuthCookies(res, accessToken, refreshToken, rememberMe);
+  setAuthCookies(reply, accessToken, refreshToken, rememberMe);
 
-  res.status(200).json({
+  return reply.status(200).send({
     success: true,
     data: { id: user.id, name: user.name, email: user.email },
     accessToken,
   });
 };
 
-const refresh = async (req: Request, res: Response): Promise<void> => {
+const refresh = async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
   const incomingRefreshToken = req.cookies.refreshToken;
 
   if (!incomingRefreshToken) {
-    res.status(401).json({ success: false, message: "Refresh token not found" });
-    return;
+    return reply.status(401).send({ success: false, message: "Refresh token not found" });
   }
 
   try {
@@ -135,8 +131,7 @@ const refresh = async (req: Request, res: Response): Promise<void> => {
     });
 
     if (!storedToken) {
-      res.status(401).json({ success: false, message: "Invalid refresh token" });
-      return;
+      return reply.status(401).send({ success: false, message: "Invalid refresh token" });
     }
 
     const newAccessToken = generateAccessToken(decoded.id);
@@ -152,15 +147,15 @@ const refresh = async (req: Request, res: Response): Promise<void> => {
       },
     });
 
-    setAuthCookies(res, newAccessToken, newRefreshToken);
+    setAuthCookies(reply, newAccessToken, newRefreshToken);
 
-    res.status(200).json({ success: true, accessToken: newAccessToken });
+    return reply.status(200).send({ success: true, accessToken: newAccessToken });
   } catch (error) {
-    res.status(401).json({ success: false, message: "Invalid refresh token" });
+    return reply.status(401).send({ success: false, message: "Invalid refresh token" });
   }
 };
 
-const logout = async (req: Request, res: Response): Promise<void> => {
+const logout = async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
   const refreshToken = req.cookies.refreshToken;
   let accessToken = req.cookies.accessToken;
 
@@ -188,17 +183,16 @@ const logout = async (req: Request, res: Response): Promise<void> => {
     }
   }
 
-  clearAuthCookies(res);
-  res.status(200).json({ success: true, message: "Logged out" });
+  clearAuthCookies(reply);
+  return reply.status(200).send({ success: true, message: "Logged out" });
 };
 
-const forgotPassword = async (req: Request, res: Response): Promise<void> => {
+const forgotPassword = async (req: FastifyRequest<{ Body: z.infer<typeof forgotPasswordSchema>["body"] }>, reply: FastifyReply): Promise<void> => {
   const { email } = req.body;
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
-    res.status(404).json({ success: false, message: "User not found" });
-    return;
+    return reply.status(404).send({ success: false, message: "User not found" });
   }
 
   const resetToken = crypto.randomBytes(32).toString("hex");
@@ -212,19 +206,17 @@ const forgotPassword = async (req: Request, res: Response): Promise<void> => {
     },
   });
 
-  // Since we don't have an email provider, we will log it to the console
-  // and send it in the dev response for easier testing
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
   console.log(`[Email Mock] Password reset URL for ${user.email}: \n${resetUrl}`);
 
-  res.status(200).json({
+  return reply.status(200).send({
     success: true,
     message: "Password reset link generated. Check console.",
     ...(process.env.NODE_ENV !== "production" && { resetUrl }),
   });
 };
 
-const resetPassword = async (req: Request, res: Response): Promise<void> => {
+const resetPassword = async (req: FastifyRequest<{ Body: z.infer<typeof resetPasswordSchema>["body"], Params: z.infer<typeof resetPasswordSchema>["params"] }>, reply: FastifyReply): Promise<void> => {
   const { resetToken } = req.params;
   const { password } = req.body;
 
@@ -238,8 +230,7 @@ const resetPassword = async (req: Request, res: Response): Promise<void> => {
   });
 
   if (!user) {
-    res.status(400).json({ success: false, message: "Invalid or expired token" });
-    return;
+    return reply.status(400).send({ success: false, message: "Invalid or expired token" });
   }
 
   const salt = await bcrypt.genSalt(10);
@@ -254,10 +245,9 @@ const resetPassword = async (req: Request, res: Response): Promise<void> => {
     },
   });
 
-  // Optional: clear refresh tokens so other devices logged out
   await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
 
-  res.status(200).json({ success: true, message: "Password reset successfully" });
+  return reply.status(200).send({ success: true, message: "Password reset successfully" });
 };
 
 export const authController = {

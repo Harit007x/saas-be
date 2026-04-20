@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { FastifyRequest, FastifyReply } from 'fastify';
 
 const todos = [
   { id: 1, title: "Learn Node.js", completed: false },
@@ -6,12 +6,12 @@ const todos = [
   { id: 3, title: "Connect with Frontend", completed: false },
 ];
 
-const fetchAllTodo = async (req: Request, res: Response) => {
+const fetchAllTodo = async (req: FastifyRequest, reply: FastifyReply) => {
   try {
-    res.status(200).json({ success: true, data: todos });
+    return reply.status(200).send({ success: true, data: todos });
   } catch (error) {
     console.error("Error fetching TODO items:", error);
-    res.status(500).json({ success: false, error: "Internal Server Error" });
+    return reply.status(500).send({ success: false, error: "Internal Server Error" });
   }
 };
 

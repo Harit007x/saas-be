@@ -1,42 +1,39 @@
-import { Request, Response, NextFunction, ErrorRequestHandler } from "express";
+import { FastifyError, FastifyRequest, FastifyReply } from "fastify";
 import { ZodError } from "zod";
 
-export const errorHandler: ErrorRequestHandler = (
-  err: any,
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void => {
+export const errorHandler = (
+  error: FastifyError,
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
   if (process.env.NODE_ENV !== "production") {
-    console.error("Path:", req.path);
-    console.error("Error:", err);
+    request.log.error(error);
   }
 
-  // Handle Zod Validation Errors
-  if (err instanceof ZodError) {
-    res.status(400).json({
+  // Handle Zod Validation Errors (from fastify-type-provider-zod)
+  if (error instanceof ZodError) {
+    return reply.status(400).send({
       success: false,
       message: "Validation Error",
-      errors: err.issues,
+      errors: error.issues,
     });
-    return;
   }
 
-  // Handle syntax errors (malformed JSON)
-  if (err instanceof SyntaxError && "body" in err) {
-    res.status(400).json({
+  // Handle Fastify validation errors if they aren't ZodErrors
+  if (error.validation) {
+    return reply.status(400).send({
       success: false,
-      message: "Invalid format. Expected JSON.",
+      message: "Validation Error",
+      errors: error.validation,
     });
-    return;
   }
 
-  const statusCode = err.statusCode || 500;
-  const message = err.message || "Internal Server Error";
+  const statusCode = error.statusCode || 500;
+  const message = error.message || "Internal Server Error";
 
-  res.status(statusCode).json({
+  return reply.status(statusCode).send({
     success: false,
     message,
-    ...(process.env.NODE_ENV !== "production" && { stack: err.stack }),
+    ...(process.env.NODE_ENV !== "production" && { stack: error.stack }),
   });
 };

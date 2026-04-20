@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { FastifyRequest, FastifyReply } from "fastify";
 import jwt from "jsonwebtoken";
 import { prisma } from "../utils/db";
 
@@ -6,26 +6,29 @@ interface JwtPayload {
   id: string;
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: any;
-    }
+import "@fastify/jwt";
+
+declare module "@fastify/jwt" {
+  interface FastifyJWT {
+    user: {
+      id: string;
+      name: string;
+      email: string;
+    };
   }
 }
 
-export const protect = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const protect = async (request: FastifyRequest, reply: FastifyReply) => {
   let token;
 
-  if (req.cookies.accessToken) {
-    token = req.cookies.accessToken;
-  } else if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
-    token = req.headers.authorization.split(" ")[1];
+  if (request.cookies.accessToken) {
+    token = request.cookies.accessToken;
+  } else if (request.headers.authorization && request.headers.authorization.startsWith("Bearer")) {
+    token = request.headers.authorization.split(" ")[1];
   }
 
   if (!token) {
-    res.status(401).json({ success: false, message: "Not authorized to access this route" });
-    return;
+    return reply.status(401).send({ success: false, message: "Not authorized to access this route" });
   }
 
   try {
@@ -35,8 +38,7 @@ export const protect = async (req: Request, res: Response, next: NextFunction): 
     });
 
     if (isBlacklisted) {
-      res.status(401).json({ success: false, message: "Token has been revoked" });
-      return;
+      return reply.status(401).send({ success: false, message: "Token has been revoked" });
     }
 
     // Verify token
@@ -48,13 +50,12 @@ export const protect = async (req: Request, res: Response, next: NextFunction): 
     });
 
     if (!user) {
-      res.status(401).json({ success: false, message: "User belonging to this token no longer exists" });
-      return;
+      return reply.status(401).send({ success: false, message: "User belonging to this token no longer exists" });
     }
 
-    req.user = user;
-    next();
+    request.user = user;
+    // Fastify preHandlers don't call next(), they just return or throw
   } catch (error) {
-    res.status(401).json({ success: false, message: "Not authorized to access this route" });
+    return reply.status(401).send({ success: false, message: "Not authorized to access this route" });
   }
 };
