@@ -40,9 +40,15 @@ model Monitor {
   postUrl    String
   webhookUrl String?
   isActive   Boolean  @default(true)
+  provider   String?
+  lastRunAt  DateTime?
+  lastSuccessAt DateTime?
+  lastError  String?
+  consecutiveFailures Int @default(0)
   userId     String   @db.ObjectId
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   leads      Lead[]
+  runs       MonitorRun[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
@@ -50,11 +56,39 @@ model Monitor {
 model Lead {
   id             String   @id @map("_id") @default(auto()) @db.ObjectId
   name           String
+  externalId     String?
+  profileId      String?
   linkedinUrl    String?
   jobTitle       String?
   company        String?
   engagementType String   // "LIKE", "COMMENT"
+  eventHash      String
+  postUrl        String?
+  engagedAt      DateTime?
+  rawPayload     Json?
   monitorId      String   @db.ObjectId
   monitor        Monitor  @relation(fields: [monitorId], references: [id], onDelete: Cascade)
   createdAt      DateTime @default(now())
+
+  @@unique([monitorId, eventHash])
+  @@index([monitorId, createdAt])
+}
+
+model MonitorRun {
+  id              String   @id @map("_id") @default(auto()) @db.ObjectId
+  monitorId       String   @db.ObjectId
+  monitor         Monitor  @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  provider        String
+  status          String   // "SUCCESS", "FAILED"
+  startedAt       DateTime
+  endedAt         DateTime
+  fetchedCount    Int
+  newCount        Int
+  errorCode       String?
+  errorMessage    String?
+  rawRunId        String?
+  rawMeta         Json?
+  createdAt       DateTime @default(now())
+
+  @@index([monitorId, createdAt])
 }

@@ -8,7 +8,11 @@ export const getMonitors = async (req: Request, res: Response) => {
       include: { 
         _count: {
           select: { leads: true }
-        }
+        },
+        runs: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
        },
        orderBy: { createdAt: 'desc' }
     });
@@ -21,14 +25,22 @@ export const getMonitors = async (req: Request, res: Response) => {
 export const createMonitor = async (req: Request, res: Response) => {
   try {
     const { postUrl, webhookUrl } = req.body;
-    if (!postUrl) {
+    const normalizedPostUrl = String(postUrl || "").trim();
+    if (!normalizedPostUrl) {
       res.status(400).json({ success: false, message: "postUrl is required" });
+      return;
+    }
+    if (
+      !normalizedPostUrl.includes("linkedin.com/posts/") &&
+      !normalizedPostUrl.includes("linkedin.com/feed/update/")
+    ) {
+      res.status(400).json({ success: false, message: "Only LinkedIn post URLs are supported" });
       return;
     }
 
     const newMonitor = await prisma.monitor.create({
       data: {
-        postUrl,
+        postUrl: normalizedPostUrl,
         webhookUrl,
         userId: String(req.user.id)
       }
@@ -51,5 +63,58 @@ export const toggleMonitor = async (req: Request, res: Response) => {
     res.json({ success: true, message: "Monitor status updated" });
   } catch (error: any) {
     res.status(500).json({ success: false, message: "Error updating monitor" });
+  }
+};
+
+import { scrapeAndSaveLeads } from "../services/scraperService";
+
+export const scrapeMonitorNow = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const monitor = await prisma.monitor.findFirst({
+      where: { id: String(id), userId: String(req.user.id) }
+    });
+
+    if (!monitor) {
+      res.status(404).json({ success: false, message: "Monitor not found" });
+      return;
+    }
+
+    const result = await scrapeAndSaveLeads(monitor.id, monitor.postUrl);
+    
+    res.json({ 
+      success: true, 
+      message: "Scraping completed successfully.", 
+      data: result 
+    });
+  } catch (error: any) {
+    console.error("[Controller] Scrape now error:", error);
+    res.status(500).json({ success: false, message: "Error during immediate scraping." });
+  }
+};
+
+export const getMonitorRuns = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const monitor = await prisma.monitor.findFirst({
+      where: { id: String(id), userId: String(req.user.id) },
+      select: { id: true },
+    });
+
+    if (!monitor) {
+      res.status(404).json({ success: false, message: "Monitor not found" });
+      return;
+    }
+
+    const runs = await prisma.monitorRun.findMany({
+      where: { monitorId: monitor.id },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    });
+
+    res.json({ success: true, count: runs.length, data: runs });
+  } catch {
+    res.status(500).json({ success: false, message: "Error fetching monitor runs" });
   }
 };
