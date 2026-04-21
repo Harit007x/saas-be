@@ -8,6 +8,7 @@ import { prisma } from "./utils/db";
 import { errorHandler } from "./middlewares/errorHandler";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./utils/swagger";
+import { initCronWorker } from "./workers/cronWorker";
 
 dotenvFlow.config();
 
@@ -45,6 +46,9 @@ async function startServer() {
     server.listen(PORT, () => {
       console.log(`✅ HTTP server running on http://localhost:${PORT}`);
     });
+
+    // Initialize background workers
+    initCronWorker();
 
     const shutdown = async () => {
       console.log("🛑 Shutting down server...");

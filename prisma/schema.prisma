@@ -16,6 +16,7 @@ model User {
   resetPasswordExpire DateTime?
   createdAt           DateTime @default(now())
   refreshTokens       RefreshToken[]
+  monitors            Monitor[]
 }
 
 model RefreshToken {
@@ -32,4 +33,28 @@ model BlacklistedToken {
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model Monitor {
+  id         String   @id @map("_id") @default(auto()) @db.ObjectId
+  postUrl    String
+  webhookUrl String?
+  isActive   Boolean  @default(true)
+  userId     String   @db.ObjectId
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leads      Lead[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Lead {
+  id             String   @id @map("_id") @default(auto()) @db.ObjectId
+  name           String
+  linkedinUrl    String?
+  jobTitle       String?
+  company        String?
+  engagementType String   // "LIKE", "COMMENT"
+  monitorId      String   @db.ObjectId
+  monitor        Monitor  @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
 }
