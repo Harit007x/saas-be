@@ -2,7 +2,7 @@ import cron from "node-cron";
 import { prisma } from "../utils/db";
 import { scrapeAndSaveLeads } from "../services/scraperService";
 
-type MonitorJob = { id: string; postUrl: string };
+type MonitorJob = { id: string; profileUrl: string };
 const MAX_CONCURRENCY = Number(process.env.SCRAPE_WORKER_CONCURRENCY || 3);
 const MAX_RETRIES = Number(process.env.SCRAPE_WORKER_RETRIES || 2);
 
@@ -15,7 +15,7 @@ const processJob = async (job: MonitorJob) => {
   let attempt = 0;
   while (attempt <= MAX_RETRIES) {
     try {
-      await scrapeAndSaveLeads(job.id, job.postUrl);
+      await scrapeAndSaveLeads(job.id, job.profileUrl);
       return;
     } catch (error) {
       attempt++;
@@ -60,7 +60,7 @@ export const initCronWorker = () => {
       }
 
       for (const monitor of activeMonitors) {
-        queue.push({ id: monitor.id, postUrl: monitor.postUrl });
+        queue.push({ id: monitor.id, profileUrl: monitor.profileUrl });
       }
       void kickQueue();
       console.log("[CRON] Scraper cycle completed.");

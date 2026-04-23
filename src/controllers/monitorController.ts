@@ -24,23 +24,20 @@ export const getMonitors = async (req: Request, res: Response) => {
 
 export const createMonitor = async (req: Request, res: Response) => {
   try {
-    const { postUrl, webhookUrl } = req.body;
-    const normalizedPostUrl = String(postUrl || "").trim();
-    if (!normalizedPostUrl) {
-      res.status(400).json({ success: false, message: "postUrl is required" });
+    const { profileUrl, webhookUrl } = req.body;
+    const normalizedProfileUrl = String(profileUrl || "").trim();
+    if (!normalizedProfileUrl) {
+      res.status(400).json({ success: false, message: "profileUrl is required" });
       return;
     }
-    if (
-      !normalizedPostUrl.includes("linkedin.com/posts/") &&
-      !normalizedPostUrl.includes("linkedin.com/feed/update/")
-    ) {
-      res.status(400).json({ success: false, message: "Only LinkedIn post URLs are supported" });
+    if (!normalizedProfileUrl.includes("linkedin.com/in/")) {
+      res.status(400).json({ success: false, message: "Only LinkedIn profile URLs are supported" });
       return;
     }
 
     const newMonitor = await prisma.monitor.create({
       data: {
-        postUrl: normalizedPostUrl,
+        profileUrl: normalizedProfileUrl,
         webhookUrl,
         userId: String(req.user.id)
       }
@@ -66,7 +63,7 @@ export const toggleMonitor = async (req: Request, res: Response) => {
   }
 };
 
-import { scrapeAndSaveLeads } from "../services/scraperService";
+import { scrapeAndSaveLeads, scrapePostOnlyAndSaveLeads } from "../services/scraperService";
 
 export const scrapeMonitorNow = async (req: Request, res: Response) => {
   try {
@@ -81,7 +78,7 @@ export const scrapeMonitorNow = async (req: Request, res: Response) => {
       return;
     }
 
-    const result = await scrapeAndSaveLeads(monitor.id, monitor.postUrl);
+    const result = await scrapeAndSaveLeads(monitor.id, monitor.profileUrl);
     
     res.json({ 
       success: true, 
@@ -91,6 +88,38 @@ export const scrapeMonitorNow = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error("[Controller] Scrape now error:", error);
     res.status(500).json({ success: false, message: "Error during immediate scraping." });
+  }
+};
+
+export const scrapePostManual = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { postUrl } = req.body;
+    
+    if (!postUrl) {
+      res.status(400).json({ success: false, message: "postUrl is required" });
+      return;
+    }
+
+    const monitor = await prisma.monitor.findFirst({
+      where: { id: String(id), userId: String(req.user.id) }
+    });
+
+    if (!monitor) {
+      res.status(404).json({ success: false, message: "Monitor not found" });
+      return;
+    }
+
+    const result = await scrapePostOnlyAndSaveLeads(monitor.id, postUrl);
+    
+    res.json({ 
+      success: true, 
+      message: "Post scraped successfully.", 
+      data: result 
+    });
+  } catch (error: any) {
+    console.error("[Controller] Scrape post error:", error);
+    res.status(500).json({ success: false, message: error.message || "Error during post scraping." });
   }
 };
 

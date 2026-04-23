@@ -37,7 +37,18 @@ model BlacklistedToken {
 
 model Monitor {
   id         String   @id @map("_id") @default(auto()) @db.ObjectId
-  postUrl    String
+  profileUrl String
+  postUrl    String?
+  profileName String?
+  profileHeadline String?
+  profileImage String?
+  followersCount Int?
+  connectionsCount Int?
+  totalPosts Int?
+  engagementRate Float?
+  postsPerDay Float?
+  engagementPerPost Float?
+  uniqueEngagers Int?
   webhookUrl String?
   isActive   Boolean  @default(true)
   provider   String?
