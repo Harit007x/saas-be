@@ -24,7 +24,7 @@ export const getMonitors = async (req: Request, res: Response) => {
 
 export const createMonitor = async (req: Request, res: Response) => {
   try {
-    const { profileUrl, webhookUrl } = req.body;
+    const { profileUrl, webhookUrl, icpDefinition } = req.body;
     const normalizedProfileUrl = String(profileUrl || "").trim();
     if (!normalizedProfileUrl) {
       res.status(400).json({ success: false, message: "profileUrl is required" });
@@ -39,6 +39,7 @@ export const createMonitor = async (req: Request, res: Response) => {
       data: {
         profileUrl: normalizedProfileUrl,
         webhookUrl,
+        icpDefinition,
         userId: String(req.user.id)
       }
     });
